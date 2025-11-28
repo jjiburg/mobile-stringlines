@@ -28,5 +28,9 @@ COPY --from=frontend-build /app/frontend/dist /app/static
 # Expose port
 EXPOSE 8080
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Copy startup script
+COPY start_prod.sh .
+RUN chmod +x start_prod.sh
+
+# Run the application using the production script
+CMD ["./start_prod.sh"]

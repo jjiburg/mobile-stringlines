@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# Data
+data/
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+
+# Docker
+.docker/
