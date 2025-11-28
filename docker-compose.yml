@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: subway
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d subway" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   ingestor:
     build: .
     command: python backend/ingest_entrypoint.py
@@ -10,6 +27,11 @@ services:
     environment:
       - DB_PATH=/data/subway.db
       - GTFS_DIR=/app/gtfs_subway
+      # Uncomment to use Postgres locally
+      - DATABASE_URL=postgresql://user:password@postgres:5432/subway
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -25,6 +47,14 @@ services:
       - DB_PATH=/data/subway.db
       - GTFS_DIR=/app/gtfs_subway
       - DISABLE_POLLER=true
+      # Uncomment to use Postgres locally
+      - DATABASE_URL=postgresql://user:password@postgres:5432/subway
     depends_on:
-      - ingestor
+      ingestor:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  postgres_data:

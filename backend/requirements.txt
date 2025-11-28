@@ -4,3 +4,4 @@ requests
 gtfs-realtime-bindings
 protobuf
 aiofiles
+psycopg2-binary

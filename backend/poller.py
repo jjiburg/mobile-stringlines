@@ -5,8 +5,7 @@ import json
 import os
 import logging
 from google.transit import gtfs_realtime_pb2
-from db import get_db
-
+from db import get_db, execute_query
 import gtfs_loader
 
 # Configure logging
@@ -49,9 +48,6 @@ def process_feed(feed):
                 trip_id = tu.trip.trip_id
                 route_id = tu.trip.route_id
                 
-                # if route_id != "Q":
-                #     continue
-                
                 # Insert trip info
                 # direction_id is optional in GTFS-RT, but usually present in NYCT
                 # If missing, we try to infer from trip_id
@@ -65,37 +61,13 @@ def process_feed(feed):
                     elif '..N' in trip_id:
                         direction_id = 0
                 
-                conn.execute("""
-                    INSERT OR IGNORE INTO trips (trip_id, route_id, start_time, direction_id)
+                execute_query(conn, """
+                    INSERT INTO trips (trip_id, route_id, start_time, direction_id)
                     VALUES (?, ?, ?, ?)
+                    ON CONFLICT(trip_id) DO NOTHING
                 """, (trip_id, route_id, tu.trip.start_time, direction_id))
                 
-                # If we don't have a vehicle position for this trip, we can estimate from stop_time_update
-                # But we need to know if we have a vehicle position first. 
-                # So maybe we process vehicles first? 
-                # Or we just insert what we have.
-                
-                # Let's try to extract position from the *first* stop_time_update
-                if tu.stop_time_update:
-                    first_stu = tu.stop_time_update[0]
-                    stop_id = first_stu.stop_id
-                    # NYCT stop_ids often have N/S suffix, e.g. R01N
-                    base_stop_id = stop_id[:-1] if len(stop_id) > 3 else stop_id
-                    
-                    # dist = STATION_MAP.get(base_stop_id)
-                    dist = gtfs_loader.get_station_distance(stop_id)
-                    if dist is not None:
-                        # We use the arrival time as the timestamp if available, else current time
-                        # Actually, for stringline, we want to know where it is *now*.
-                        # If the first update is the *next* stop, the train is approaching it.
-                        # Using current time and that stop's distance is a decent approximation 
-                        # for "it's near this station".
-                        
-                        # However, to avoid duplicates if we also have a VehiclePosition, 
-                        # we should prefer VehiclePosition.
-                        # Let's just insert. If we have multiple points for the same second, it's fine.
-                        # But better to be cleaner.
-                        pass
+                # ... (rest of logic)
 
         # Second pass: Vehicle Positions (Preferred)
         for entity in feed.entity:
@@ -103,9 +75,6 @@ def process_feed(feed):
                 v = entity.vehicle
                 trip_id = v.trip.trip_id
                 route_id = v.trip.route_id
-                
-                # if route_id != "Q":
-                #     continue
                 
                 # Ensure trip exists in DB
                 direction_id = 0
@@ -117,9 +86,10 @@ def process_feed(feed):
                     elif '..N' in trip_id:
                         direction_id = 0
                         
-                conn.execute("""
-                    INSERT OR IGNORE INTO trips (trip_id, route_id, start_time, direction_id)
+                execute_query(conn, """
+                    INSERT INTO trips (trip_id, route_id, start_time, direction_id)
                     VALUES (?, ?, ?, ?)
+                    ON CONFLICT(trip_id) DO NOTHING
                 """, (trip_id, route_id, v.trip.start_time, direction_id))
                 
                 stop_id = v.stop_id
@@ -129,12 +99,11 @@ def process_feed(feed):
                 if ts > now:
                     ts = now
                 
-                # dist = STATION_MAP.get(base_stop_id)
                 dist = gtfs_loader.get_station_distance(stop_id)
                 if dist is None:
                     logger.info(f"Unmatched stop_id: {stop_id}")
                 if dist is not None:
-                    conn.execute("""
+                    execute_query(conn, """
                         INSERT INTO positions (trip_id, timestamp, stop_id, distance)
                         VALUES (?, ?, ?, ?)
                     """, (trip_id, ts, stop_id, dist))
@@ -144,7 +113,7 @@ def process_feed(feed):
         
         # Prune old data
         cutoff = now - (24 * 60 * 60)
-        conn.execute("DELETE FROM positions WHERE timestamp < ?", (cutoff,))
+        execute_query(conn, "DELETE FROM positions WHERE timestamp < ?", (cutoff,))
         conn.commit()
         
     logger.info(f"Processed feed. Added {count_updates} positions.")

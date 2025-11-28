@@ -54,14 +54,17 @@ def get_history(line: str = Query("Q")):
     now = time.time()
     cutoff = now - (60 * 60)
     
+    from db import get_db, execute_query
+    
     with get_db() as conn:
-        rows = conn.execute("""
+        cursor = execute_query(conn, """
             SELECT p.trip_id, p.timestamp, p.distance, p.stop_id, t.direction_id
             FROM positions p
             JOIN trips t ON p.trip_id = t.trip_id
             WHERE t.route_id = ? AND p.timestamp > ?
             ORDER BY p.timestamp ASC
-        """, (line, cutoff)).fetchall()
+        """, (line, cutoff))
+        rows = cursor.fetchall()
         
     trips = {}
     for r in rows:

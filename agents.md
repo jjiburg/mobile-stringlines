@@ -60,16 +60,19 @@ The application is split into two services using Docker Compose:
 -   Add "Live" indicator for real-time updates.
 
 ## Deployment (Railway)
-This project is configured for easy deployment on [Railway](https://railway.app/).
+To achieve **Zero Downtime** deployment, we recommend using PostgreSQL.
 
 1.  **Push to GitHub**: Ensure this repo is on GitHub.
 2.  **New Project**: In Railway, create a new project from your GitHub repo.
-3.  **Dockerfile**: Railway will automatically detect the `Dockerfile`.
-4.  **Persistence (Optional but Recommended)**:
-    -   By default, the SQLite database (`/data/subway.db`) is ephemeral.
-    -   To persist data, add a **Volume** in Railway.
-    -   Mount path: `/data`.
-5.  **Environment Variables**:
-    -   `PORT`: Railway sets this automatically.
-    -   `USE_MOCK_DATA`: Set to `false` (default).
-    -   `DISABLE_POLLER`: Set to `false` (default).
+3.  **Add Database**: Add a PostgreSQL database service to your Railway project.
+4.  **Environment Variables**:
+    -   `DATABASE_URL`: Link this to your Postgres service (Railway does this automatically if you add it).
+    -   `DISABLE_POLLER`: Set to `false` (default) if running as a single container.
+    -   **Advanced (Zero Downtime)**:
+        -   Deploy two separate services from the same repo: `ingestor` and `web`.
+        -   **Ingestor**: Set Start Command to `python backend/ingest_entrypoint.py`.
+        -   **Web**: Set Start Command to `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
+        -   Both must share the same `DATABASE_URL`.
+5.  **Persistence**:
+    -   If using Postgres, data is persisted automatically by the Postgres service.
+    -   If using SQLite (single container), mount a Volume to `/data`.
