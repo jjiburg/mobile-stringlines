@@ -58,3 +58,18 @@ The application is split into two services using Docker Compose:
 -   Add support for more lines (currently N, Q, R, W).
 -   Improve mobile touch interactions (scrubber is basic).
 -   Add "Live" indicator for real-time updates.
+
+## Deployment (Railway)
+This project is configured for easy deployment on [Railway](https://railway.app/).
+
+1.  **Push to GitHub**: Ensure this repo is on GitHub.
+2.  **New Project**: In Railway, create a new project from your GitHub repo.
+3.  **Dockerfile**: Railway will automatically detect the `Dockerfile`.
+4.  **Persistence (Optional but Recommended)**:
+    -   By default, the SQLite database (`/data/subway.db`) is ephemeral.
+    -   To persist data, add a **Volume** in Railway.
+    -   Mount path: `/data`.
+5.  **Environment Variables**:
+    -   `PORT`: Railway sets this automatically.
+    -   `USE_MOCK_DATA`: Set to `false` (default).
+    -   `DISABLE_POLLER`: Set to `false` (default).
