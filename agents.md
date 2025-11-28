@@ -71,7 +71,7 @@ To prevent data loss during updates, you must deploy the **Ingestor** and **Web 
 3.  **Web Service**:
     -   Create *another* service from the *same* GitHub repo.
     -   **Variables**: Add `DATABASE_URL` (link to same Postgres) and `DISABLE_POLLER=true`.
-    -   **Start Command**: `sh -c "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"`
+    -   **Start Command**: `./start_web.sh`
     -   **Domain**: Assign a domain to this service.
 
 **Result**: When you push changes, Railway will redeploy both. However, because they are separate, the Ingestor's brief restart won't affect the Website, and vice-versa. (Actually, Railway redeploys are zero-downtime for the Web App, but the Ingestor will restart. To have *truly* zero interruption for ingestion, you'd need more complex orchestration, but this split minimizes the impact significantly compared to a monolith).

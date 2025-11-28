@@ -28,9 +28,9 @@ COPY --from=frontend-build /app/frontend/dist /app/static
 # Expose port
 EXPOSE 8080
 
-# Copy startup script
-COPY start_prod.sh .
-RUN chmod +x start_prod.sh
+# Copy startup scripts
+COPY *.sh .
+RUN chmod +x *.sh
 
 # Run the application using the production script
 CMD ["./start_prod.sh"]
