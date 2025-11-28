@@ -75,3 +75,14 @@ To prevent data loss during updates, you must deploy the **Ingestor** and **Web 
     -   **Domain**: Assign a domain to this service.
 
 **Result**: When you push changes, Railway will redeploy both. However, because they are separate, the Ingestor's brief restart won't affect the Website, and vice-versa. (Actually, Railway redeploys are zero-downtime for the Web App, but the Ingestor will restart. To have *truly* zero interruption for ingestion, you'd need more complex orchestration, but this split minimizes the impact significantly compared to a monolith).
+
+## Troubleshooting
+
+### Database Connection Issues
+If you see `INFO:db:Initializing database: sqlite` in your logs, your Web Service is not connecting to Postgres.
+**Fix**:
+1.  Go to your **Postgres Service** -> **Variables**.
+2.  **Copy** the `DATABASE_URL` value (starts with `postgresql://`).
+3.  Go to your **Web Service** -> **Variables**.
+4.  Add `DATABASE_URL` and **Paste** the value manually.
+5.  Railway will redeploy, and you should see `INFO:db:Initializing database: postgres`.
