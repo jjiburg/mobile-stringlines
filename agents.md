@@ -59,20 +59,19 @@ The application is split into two services using Docker Compose:
 -   Improve mobile touch interactions (scrubber is basic).
 -   Add "Live" indicator for real-time updates.
 
-## Deployment (Railway)
-To achieve **Zero Downtime** deployment, we recommend using PostgreSQL.
+## Deployment (Railway) - Recommended
+To prevent data loss during updates, you must deploy the **Ingestor** and **Web App** as two separate services sharing a database.
 
-1.  **Push to GitHub**: Ensure this repo is on GitHub.
-2.  **New Project**: In Railway, create a new project from your GitHub repo.
-3.  **Add Database**: Add a PostgreSQL database service to your Railway project.
-4.  **Environment Variables**:
-    -   `DATABASE_URL`: Link this to your Postgres service (Railway does this automatically if you add it).
-    -   `DISABLE_POLLER`: Set to `false` (default) if running as a single container.
-    -   **Advanced (Zero Downtime)**:
-        -   Deploy two separate services from the same repo: `ingestor` and `web`.
-        -   **Ingestor**: Set Start Command to `python backend/ingest_entrypoint.py`.
-        -   **Web**: Set Start Command to `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
-        -   Both must share the same `DATABASE_URL`.
-5.  **Persistence**:
-    -   If using Postgres, data is persisted automatically by the Postgres service.
-    -   If using SQLite (single container), mount a Volume to `/data`.
+1.  **Database**: Create a **PostgreSQL** service in Railway.
+2.  **Ingestor Service**:
+    -   Create a new service from this GitHub repo.
+    -   **Variables**: Add `DATABASE_URL` (link to Postgres).
+    -   **Start Command**: `python backend/ingest_entrypoint.py`
+    -   *Note*: This service will never sleep and keeps collecting data.
+3.  **Web Service**:
+    -   Create *another* service from the *same* GitHub repo.
+    -   **Variables**: Add `DATABASE_URL` (link to same Postgres) and `DISABLE_POLLER=true`.
+    -   **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+    -   **Domain**: Assign a domain to this service.
+
+**Result**: When you push changes, Railway will redeploy both. However, because they are separate, the Ingestor's brief restart won't affect the Website, and vice-versa. (Actually, Railway redeploys are zero-downtime for the Web App, but the Ingestor will restart. To have *truly* zero interruption for ingestion, you'd need more complex orchestration, but this split minimizes the impact significantly compared to a monolith).
