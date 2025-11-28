@@ -1,2 +1,2 @@
-web: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+web: sh -c "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"
 ingestor: python backend/ingest_entrypoint.py
