@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  ingestor:
+    build: .
+    command: python backend/ingest_entrypoint.py
+    volumes:
+      - ./data:/data
+      - ./gtfs_subway:/app/gtfs_subway
+    environment:
+      - DB_PATH=/data/subway.db
+      - GTFS_DIR=/app/gtfs_subway
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./gtfs_subway:/app/gtfs_subway
+      - ./backend:/app/backend
+    environment:
+      - DB_PATH=/data/subway.db
+      - GTFS_DIR=/app/gtfs_subway
+      - DISABLE_POLLER=true
+    depends_on:
+      - ingestor
+    restart: unless-stopped
