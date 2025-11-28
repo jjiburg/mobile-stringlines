@@ -20,3 +20,9 @@ data/
 
 # Docker
 .docker/
+
+# Logs
+*.log
+
+# Misc
+nyct%2Fgtfs-ace
