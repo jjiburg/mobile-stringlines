@@ -33,14 +33,16 @@ const Stringline = ({ data, stations }) => {
             .range([0, dimensions.width]);
 
         // Uniform Y-Scale for Stations
-        // We map station index to height
+        // We map station index to height, adding some padding top/bottom
+        const paddingY = 20;
+        const effectiveHeight = dimensions.height - (paddingY * 2);
+
         const yScale = (stationIndex) => {
             if (!stations || stations.length === 0) return 0;
-            return (stationIndex / (stations.length - 1)) * dimensions.height;
+            return paddingY + (stationIndex / (stations.length - 1)) * effectiveHeight;
         };
 
         // Map physical distance to uniform Y
-        // We create a polylinear scale mapping [s1.dist, s2.dist...] -> [y1, y2...]
         let distanceToY = d3.scaleLinear();
         if (stations && stations.length > 1) {
             const domain = stations.map(s => s.dist);
@@ -59,7 +61,7 @@ const Stringline = ({ data, stations }) => {
         return d3.line()
             .x(d => xScale(d.timestamp))
             .y(d => distanceToY(d.distance))
-            .curve(d3.curveLinear);
+            .curve(d3.curveLinear); // Linear is best for stringlines to show speed changes accurately
     }, [xScale, distanceToY]);
 
     // Touch Handling
@@ -87,7 +89,7 @@ const Stringline = ({ data, stations }) => {
     return (
         <div
             ref={containerRef}
-            style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
+            style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none', overflow: 'hidden' }}
             onTouchStart={handleTouch}
             onTouchMove={handleTouch}
             onTouchEnd={handleTouchEnd}
@@ -97,11 +99,31 @@ const Stringline = ({ data, stations }) => {
             onMouseLeave={handleTouchEnd}
         >
             <svg width={dimensions.width} height={dimensions.height} style={{ display: 'block' }}>
+                <defs>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="2" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <linearGradient id="fadeGradient" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="black" stopOpacity="1" />
+                        <stop offset="10%" stopColor="black" stopOpacity="0" />
+                    </linearGradient>
+                </defs>
+
                 {/* Grid Lines (Stations) */}
                 {stations && stations.map((s, i) => (
                     <g key={s.id} transform={`translate(0, ${yScale(i)})`}>
-                        <line x1={0} x2={dimensions.width} stroke="#333" strokeWidth={1} />
-                        <text x={5} y={-5} fill="#666" fontSize="10">{s.name}</text>
+                        <line x1={0} x2={dimensions.width} stroke="#38383A" strokeWidth={1} strokeDasharray="2 2" />
+                        <text
+                            x={10}
+                            y={-6}
+                            fill="#8E8E93"
+                            fontSize="11"
+                            fontWeight="500"
+                            style={{ pointerEvents: 'none', textShadow: '0 1px 2px black' }}
+                        >
+                            {s.name}
+                        </text>
                     </g>
                 ))}
 
@@ -111,41 +133,46 @@ const Stringline = ({ data, stations }) => {
                         key={trip.trip_id}
                         d={lineGenerator(trip.positions)}
                         fill="none"
-                        stroke={trip.direction_id === 0 ? "#00ff00" : "#ff00ff"} // Green for one way, Magenta for other
+                        stroke={trip.direction_id === 0 ? "#FCCC0A" : "#FCCC0A"} // Use line color for both, maybe opacity diff?
                         strokeWidth={2}
                         opacity={0.8}
+                        filter="url(#glow)"
                     />
                 ))}
 
                 {/* Scrubber */}
                 {scrubberX !== null && (
-                    <line
-                        x1={scrubberX}
-                        x2={scrubberX}
-                        y1={0}
-                        y2={dimensions.height}
-                        stroke="white"
-                        strokeWidth={1}
-                        strokeDasharray="4 4"
-                    />
+                    <g>
+                        <line
+                            x1={scrubberX}
+                            x2={scrubberX}
+                            y1={0}
+                            y2={dimensions.height}
+                            stroke="white"
+                            strokeWidth={1}
+                        />
+                        {/* Time Label at bottom of scrubber */}
+                        <rect
+                            x={scrubberX - 30}
+                            y={dimensions.height - 20}
+                            width={60}
+                            height={20}
+                            rx={4}
+                            fill="#1C1C1E"
+                        />
+                        <text
+                            x={scrubberX}
+                            y={dimensions.height - 6}
+                            textAnchor="middle"
+                            fill="white"
+                            fontSize="11"
+                            fontWeight="600"
+                        >
+                            {new Date(xScale.invert(scrubberX) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </text>
+                    </g>
                 )}
             </svg>
-
-            {/* Scrubber Tooltip - Simplified for now */}
-            {scrubberX !== null && (
-                <div style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: scrubberX + 10,
-                    background: 'rgba(0,0,0,0.8)',
-                    padding: '5px',
-                    borderRadius: '4px',
-                    pointerEvents: 'none',
-                    fontSize: '12px'
-                }}>
-                    {new Date(xScale.invert(scrubberX) * 1000).toLocaleTimeString()}
-                </div>
-            )}
         </div>
     );
 };

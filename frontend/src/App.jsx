@@ -13,9 +13,12 @@ function App() {
   const [stations, setStations] = useState([]);
   const [selectedLine, setSelectedLine] = useState('Q');
   const [selectedDirection, setSelectedDirection] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      // Don't set loading to true on every poll, only initial or line change could trigger it if we wanted
+      // But for now, let's just keep it simple.
       try {
         // Fetch stations for selected line
         const stationsRes = await fetch(`/api/stations?line=${selectedLine}`);
@@ -32,9 +35,12 @@ function App() {
         }
       } catch (e) {
         console.error("Failed to fetch data", e);
+      } finally {
+        setIsLoading(false);
       }
     };
 
+    setIsLoading(true); // Show loading when line changes
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
@@ -45,20 +51,22 @@ function App() {
 
   return (
     <div className="App">
-      <div className="header">
-        <div className="controls">
-          <div className="line-picker">
-            {LINES.map(line => (
-              <button
-                key={line}
-                className={`line-btn ${selectedLine === line ? 'active' : ''} line-${line}`}
-                onClick={() => setSelectedLine(line)}
-              >
-                {line}
-              </button>
-            ))}
-          </div>
-          <div className="direction-picker">
+      <div className="header glass">
+        <div className="header-content">
+          NYC Stringlines • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+
+      <div className="chart-container">
+        <div className={`loading-overlay ${isLoading ? 'visible' : ''}`}>
+          <div className="spinner"></div>
+        </div>
+        <Stringline data={filteredData} stations={stations} />
+      </div>
+
+      <div className="controls-sheet glass">
+        <div className="direction-toggle-container">
+          <div className="direction-toggle">
             {DIRECTIONS.map(dir => (
               <button
                 key={dir.id}
@@ -70,9 +78,20 @@ function App() {
             ))}
           </div>
         </div>
-      </div>
-      <div className="chart-container">
-        <Stringline data={filteredData} stations={stations} />
+
+        <div className="line-picker-container">
+          <div className="line-picker">
+            {LINES.map(line => (
+              <button
+                key={line}
+                className={`line-btn line-${line} ${selectedLine === line ? 'active' : ''}`}
+                onClick={() => setSelectedLine(line)}
+              >
+                {line}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
