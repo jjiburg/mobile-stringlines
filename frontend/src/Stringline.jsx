@@ -34,12 +34,15 @@ const Stringline = ({ data, stations }) => {
 
         // Uniform Y-Scale for Stations
         // We map station index to height, adding some padding top/bottom
-        const paddingY = 20;
-        const effectiveHeight = dimensions.height - (paddingY * 2);
+        // Top padding: Header (~60px) + extra
+        // Bottom padding: Controls Sheet (~180px) + extra
+        const paddingTop = 80;
+        const paddingBottom = 200;
+        const effectiveHeight = dimensions.height - paddingTop - paddingBottom;
 
         const yScale = (stationIndex) => {
             if (!stations || stations.length === 0) return 0;
-            return paddingY + (stationIndex / (stations.length - 1)) * effectiveHeight;
+            return paddingTop + (stationIndex / (stations.length - 1)) * effectiveHeight;
         };
 
         // Map physical distance to uniform Y
@@ -110,24 +113,7 @@ const Stringline = ({ data, stations }) => {
                     </linearGradient>
                 </defs>
 
-                {/* Grid Lines (Stations) */}
-                {stations && stations.map((s, i) => (
-                    <g key={s.id} transform={`translate(0, ${yScale(i)})`}>
-                        <line x1={0} x2={dimensions.width} stroke="#38383A" strokeWidth={1} strokeDasharray="2 2" />
-                        <text
-                            x={10}
-                            y={-6}
-                            fill="#8E8E93"
-                            fontSize="11"
-                            fontWeight="500"
-                            style={{ pointerEvents: 'none', textShadow: '0 1px 2px black' }}
-                        >
-                            {s.name}
-                        </text>
-                    </g>
-                ))}
-
-                {/* Trips */}
+                {/* Trips (Rendered FIRST so they are behind text) */}
                 {data.map(trip => (
                     <path
                         key={trip.trip_id}
@@ -138,6 +124,38 @@ const Stringline = ({ data, stations }) => {
                         opacity={0.8}
                         filter="url(#glow)"
                     />
+                ))}
+
+                {/* Grid Lines (Stations) */}
+                {stations && stations.map((s, i) => (
+                    <g key={s.id} transform={`translate(0, ${yScale(i)})`}>
+                        <line x1={0} x2={dimensions.width} stroke="#38383A" strokeWidth={1} strokeDasharray="2 2" opacity="0.5" />
+                        {/* Text Halo for legibility */}
+                        <text
+                            x={10}
+                            y={-6}
+                            stroke="#000000"
+                            strokeWidth="4"
+                            strokeLinejoin="round"
+                            opacity="0.8"
+                            fontSize="11"
+                            fontWeight="500"
+                            style={{ pointerEvents: 'none' }}
+                        >
+                            {s.name}
+                        </text>
+                        {/* Actual Text */}
+                        <text
+                            x={10}
+                            y={-6}
+                            fill="#8E8E93"
+                            fontSize="11"
+                            fontWeight="500"
+                            style={{ pointerEvents: 'none' }}
+                        >
+                            {s.name}
+                        </text>
+                    </g>
                 ))}
 
                 {/* Scrubber */}
@@ -154,7 +172,7 @@ const Stringline = ({ data, stations }) => {
                         {/* Time Label at bottom of scrubber */}
                         <rect
                             x={scrubberX - 30}
-                            y={dimensions.height - 20}
+                            y={dimensions.height - 180}
                             width={60}
                             height={20}
                             rx={4}
@@ -162,7 +180,7 @@ const Stringline = ({ data, stations }) => {
                         />
                         <text
                             x={scrubberX}
-                            y={dimensions.height - 6}
+                            y={dimensions.height - 166}
                             textAnchor="middle"
                             fill="white"
                             fontSize="11"
@@ -173,6 +191,21 @@ const Stringline = ({ data, stations }) => {
                     </g>
                 )}
             </svg>
+            {/* Scrubber Tooltip - Simplified for now */}
+            {scrubberX !== null && (
+                <div style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: scrubberX + 10,
+                    background: 'rgba(0,0,0,0.8)',
+                    padding: '5px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    fontSize: '12px'
+                }}>
+                    {new Date(xScale.invert(scrubberX) * 1000).toLocaleTimeString()}
+                </div>
+            )}
         </div>
     );
 };
