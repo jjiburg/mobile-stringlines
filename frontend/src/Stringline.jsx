@@ -22,8 +22,10 @@ const Stringline = ({ data, stations }) => {
     }, []);
 
     // Scales
-    const { xScale, yScale, distanceToY } = useMemo(() => {
-        if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToY: null };
+    const { xScale, yScale, distanceToY, timeTicks } = useMemo(() => {
+        if (dimensions.width === 0 || dimensions.height === 0) {
+            return { xScale: null, yScale: null, distanceToY: null, timeTicks: [] };
+        }
 
         const now = Date.now() / 1000; // seconds
         const oneHourAgo = now - 3600;
@@ -32,15 +34,11 @@ const Stringline = ({ data, stations }) => {
             .domain([oneHourAgo, now])
             .range([0, dimensions.width]);
 
-        // Uniform Y-Scale for Stations
-        // We map station index to height
         const yScale = (stationIndex) => {
             if (!stations || stations.length === 0) return 0;
             return (stationIndex / (stations.length - 1)) * dimensions.height;
         };
 
-        // Map physical distance to uniform Y
-        // We create a polylinear scale mapping [s1.dist, s2.dist...] -> [y1, y2...]
         let distanceToY = d3.scaleLinear();
         if (stations && stations.length > 1) {
             const domain = stations.map(s => s.dist);
@@ -50,7 +48,15 @@ const Stringline = ({ data, stations }) => {
             distanceToY.domain([0, 200]).range([0, dimensions.height]);
         }
 
-        return { xScale, yScale, distanceToY };
+        const tickStep = 15 * 60; // 15 minutes
+        const ticks = [];
+        const [start, end] = xScale.domain();
+        const firstTick = Math.ceil(start / tickStep) * tickStep;
+        for (let t = firstTick; t <= end; t += tickStep) {
+            ticks.push(t);
+        }
+
+        return { xScale, yScale, distanceToY, timeTicks: ticks };
     }, [dimensions, stations]);
 
     // Line Generator
@@ -97,53 +103,95 @@ const Stringline = ({ data, stations }) => {
             onMouseLeave={handleTouchEnd}
         >
             <svg width={dimensions.width} height={dimensions.height} style={{ display: 'block' }}>
+                <defs>
+                    <linearGradient id="gridFade" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
+                        <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
+                    </linearGradient>
+                </defs>
+
+                {/* Time grid */}
+                {timeTicks.map(t => {
+                    const x = xScale(t);
+                    return (
+                        <g key={`time-${t}`} transform={`translate(${x},0)`}>
+                            <line y1={0} y2={dimensions.height} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+                            <text
+                                y={12}
+                                x={4}
+                                fill="#9fb2c8"
+                                fontSize="11"
+                                style={{ paintOrder: 'stroke fill', stroke: '#0b1222', strokeWidth: 3 }}
+                            >
+                                {new Date(t * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </text>
+                        </g>
+                    );
+                })}
+
                 {/* Grid Lines (Stations) */}
                 {stations && stations.map((s, i) => (
-                    <g key={s.id} transform={`translate(0, ${yScale(i)})`}>
-                        <line x1={0} x2={dimensions.width} stroke="#333" strokeWidth={1} />
-                        <text x={5} y={-5} fill="#666" fontSize="10">{s.name}</text>
+                    <g key={s.id || s.name} transform={`translate(0, ${yScale(i)})`}>
+                        <line x1={0} x2={dimensions.width} stroke="url(#gridFade)" strokeWidth={1} />
+                        <text
+                            x={8}
+                            y={-6}
+                            fill="#dce6f2"
+                            fontSize="11"
+                            style={{ paintOrder: 'stroke fill', stroke: '#0b1222', strokeWidth: 4 }}
+                        >
+                            {s.name}
+                        </text>
                     </g>
                 ))}
 
                 {/* Trips */}
-                {data.map(trip => (
-                    <path
-                        key={trip.trip_id}
-                        d={lineGenerator(trip.positions)}
-                        fill="none"
-                        stroke={trip.direction_id === 0 ? "#00ff00" : "#ff00ff"} // Green for one way, Magenta for other
-                        strokeWidth={2}
-                        opacity={0.8}
-                    />
-                ))}
+                {data.map(trip => {
+                    if (!trip.positions || trip.positions.length < 2) return null;
+                    return (
+                        <path
+                            key={trip.trip_id}
+                            d={lineGenerator(trip.positions)}
+                            fill="none"
+                            stroke={trip.direction_id === 0 ? "var(--north-color)" : "var(--south-color)"}
+                            strokeWidth={2.2}
+                            opacity={0.9}
+                        />
+                    );
+                })}
 
                 {/* Scrubber */}
                 {scrubberX !== null && (
-                    <line
-                        x1={scrubberX}
-                        x2={scrubberX}
-                        y1={0}
-                        y2={dimensions.height}
-                        stroke="white"
-                        strokeWidth={1}
-                        strokeDasharray="4 4"
-                    />
+                    <g>
+                        <line
+                            x1={scrubberX}
+                            x2={scrubberX}
+                            y1={0}
+                            y2={dimensions.height}
+                            stroke="#e8f0f6"
+                            strokeWidth={1.2}
+                            strokeDasharray="6 6"
+                        />
+                    </g>
                 )}
             </svg>
 
-            {/* Scrubber Tooltip - Simplified for now */}
+            {/* Scrubber Tooltip */}
             {scrubberX !== null && (
                 <div style={{
                     position: 'absolute',
                     top: 10,
-                    left: scrubberX + 10,
-                    background: 'rgba(0,0,0,0.8)',
-                    padding: '5px',
-                    borderRadius: '4px',
+                    left: Math.min(scrubberX + 12, dimensions.width - 140),
+                    background: 'rgba(6,11,22,0.9)',
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.1)',
                     pointerEvents: 'none',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    color: '#e8f0f6',
+                    boxShadow: '0 10px 24px rgba(0,0,0,0.35)'
                 }}>
-                    {new Date(xScale.invert(scrubberX) * 1000).toLocaleTimeString()}
+                    {new Date(xScale.invert(scrubberX) * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}
                 </div>
             )}
         </div>
