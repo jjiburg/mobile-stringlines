@@ -42,6 +42,8 @@ The application is split into two services using Docker Compose:
 -   `docker-compose.yml`: Defines the `ingestor` and `web` services.
 -   `Dockerfile`: Multi-stage build for both Python backend and Node.js frontend.
 -   `run.sh`: Helper script to build and start the project.
+-   `start_prod.sh`: Startup script for single-container deployments. Runs both the ingestor (background) and web app (foreground).
+-   `start_web.sh`: Startup script for web-only service (e.g. for Railway web service).
 
 ## Development Workflow
 -   **Start**: `./run.sh` (builds and runs via docker-compose).
