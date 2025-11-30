@@ -1,95 +1,220 @@
+:root {
+  --color-bg: #000000;
+  --color-surface: #1C1C1E;
+  --color-surface-highlight: #2C2C2E;
+  --color-text: #FFFFFF;
+  --color-text-secondary: #8E8E93;
+  --color-border: #38383A;
+
+  --color-line-n: #FCCC0A;
+  --color-line-q: #FCCC0A;
+  --color-line-r: #FCCC0A;
+  --color-line-w: #FCCC0A;
+
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-main);
+  overflow: hidden;
+  /* Prevent body scroll, handle in app */
+}
+
 .App {
   width: 100%;
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: #1a1a1a;
-  color: white;
+  position: relative;
 }
 
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(28, 28, 30, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
 .header {
-  padding: 10px;
-  background-color: #000;
-  border-bottom: 1px solid #333;
-  flex-shrink: 0;
-  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(50px + var(--safe-area-top));
+  padding-top: var(--safe-area-top);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  /* Let touches pass through to chart */
 }
 
-.controls {
+.header-content {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  backdrop-filter: blur(4px);
+}
+
+/* Main Chart Area */
+.chart-container {
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Bottom Controls Sheet */
+.controls-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding-bottom: max(20px, var(--safe-area-bottom));
+  padding-top: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: center;
+  gap: 20px;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Direction Toggle */
+.direction-toggle-container {
+  padding: 0 20px;
+}
+
+.direction-toggle {
+  display: flex;
+  background: var(--color-surface-highlight);
+  border-radius: 9px;
+  padding: 2px;
+  height: 36px;
+}
+
+.dir-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dir-btn.active {
+  background: #636366;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Line Picker */
+.line-picker-container {
+  overflow-x: auto;
+  padding: 0 20px 10px 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.line-picker-container::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari */
 }
 
 .line-picker {
   display: flex;
-  gap: 10px;
+  gap: 16px;
+  min-width: min-content;
+  /* Ensure it scrolls if content overflows */
 }
 
 .line-btn {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: none;
-  font-weight: bold;
-  font-size: 1.2rem;
-  cursor: pointer;
-  background-color: #333;
-  color: #888;
+  background: var(--color-surface-highlight);
+  color: var(--color-text-secondary);
+  font-size: 24px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  flex-shrink: 0;
 }
 
 .line-btn.active {
   color: black;
   transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(252, 204, 10, 0.4);
 }
 
-.line-N.active {
-  background-color: #FCCC0A;
+/* Dynamic Line Colors */
+.line-btn.line-N.active,
+.line-btn.line-Q.active,
+.line-btn.line-R.active,
+.line-btn.line-W.active {
+  background-color: var(--color-line-n);
 }
 
-.line-Q.active {
-  background-color: #FCCC0A;
-}
-
-.line-R.active {
-  background-color: #FCCC0A;
-}
-
-.line-W.active {
-  background-color: #FCCC0A;
-}
-
-.direction-picker {
+/* Loading / Error States */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  background-color: #333;
-  border-radius: 8px;
-  padding: 2px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
-.dir-btn {
-  background: none;
-  border: none;
-  color: #888;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  border-radius: 6px;
-  transition: all 0.2s;
+.loading-overlay.visible {
+  opacity: 1;
 }
 
-.dir-btn.active {
-  background-color: #555;
-  color: white;
-  font-weight: 600;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--color-text);
+  animation: spin 1s ease-in-out infinite;
 }
 
-.chart-container {
-  flex-grow: 1;
-  overflow: hidden;
-  position: relative;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
