@@ -10,12 +10,24 @@ except ImportError:
 
 # Configuration
 DB_PATH = os.environ.get("DB_PATH", "subway.db")
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL")  # Prefer this (use Railway private URL via variable reference)
+DATABASE_PUBLIC_URL = os.environ.get("DATABASE_PUBLIC_URL")  # Fallback for local/dev against public proxy
+IS_RAILWAY = os.environ.get("RAILWAY_PROJECT_ID") is not None
+
+# Pick the best available Postgres URL: private first, then public proxy
+def get_db_url():
+    if DATABASE_URL:
+        return DATABASE_URL
+    if IS_RAILWAY and DATABASE_PUBLIC_URL:
+        return DATABASE_PUBLIC_URL
+    if DATABASE_PUBLIC_URL:
+        return DATABASE_PUBLIC_URL
+    return None
 
 logger = logging.getLogger(__name__)
 
 def get_db_type():
-    if DATABASE_URL:
+    if get_db_url():
         return "postgres"
     return "sqlite"
 
@@ -57,7 +69,7 @@ def init_db():
         if not psycopg2:
             raise ImportError("psycopg2 is required for Postgres but not installed.")
             
-        with psycopg2.connect(DATABASE_URL) as conn:
+        with psycopg2.connect(get_db_url()) as conn:
             with conn.cursor() as cur:
                 # Postgres Schema
                 cur.execute("""
@@ -95,7 +107,7 @@ def get_db():
             conn.close()
             
     elif db_type == "postgres":
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(get_db_url())
         try:
             yield conn
         finally:
