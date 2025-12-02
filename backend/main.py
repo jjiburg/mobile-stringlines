@@ -52,7 +52,7 @@ def get_history(line: str = Query("Q")):
     # Limit to last 60 mins
     import time
     now = time.time()
-    cutoff = now - (60 * 60)
+    cutoff = now - (30 * 60)
     
     from db import get_db, execute_query
     

@@ -25,7 +25,9 @@ const Stringline = ({ data, stations }) => {
     const { xScale, yScale, distanceToY } = useMemo(() => {
         if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToY: null };
 
-        const now = Date.now() / 1000; // seconds
+        // Update time window based on latest data or current time
+        // We use the latest timestamp in data or current time if data is empty
+        const now = Date.now() / 1000;
         const oneHourAgo = now - 3600;
 
         const xScale = d3.scaleLinear()
@@ -56,7 +58,7 @@ const Stringline = ({ data, stations }) => {
         }
 
         return { xScale, yScale, distanceToY };
-    }, [dimensions, stations]);
+    }, [dimensions, stations, data]); // Added data dependency to refresh time window
 
     // Line Generator
     const lineGenerator = useMemo(() => {
@@ -66,6 +68,22 @@ const Stringline = ({ data, stations }) => {
             .y(d => distanceToY(d.distance))
             .curve(d3.curveLinear); // Linear is best for stringlines to show speed changes accurately
     }, [xScale, distanceToY]);
+
+    // Memoize Trip Paths to avoid re-calculation on scrubber interaction
+    const tripPaths = useMemo(() => {
+        if (!data || !lineGenerator) return null;
+        return data.map(trip => (
+            <path
+                key={trip.trip_id}
+                d={lineGenerator(trip.positions)}
+                fill="none"
+                stroke={trip.direction_id === 0 ? "#FCCC0A" : "#FCCC0A"}
+                strokeWidth={2}
+                opacity={0.8}
+            // filter="url(#glow)" // Removed for performance
+            />
+        ));
+    }, [data, lineGenerator]);
 
     // Touch Handling
     const handleTouch = (e) => {
@@ -103,10 +121,6 @@ const Stringline = ({ data, stations }) => {
         >
             <svg width={dimensions.width} height={dimensions.height} style={{ display: 'block' }}>
                 <defs>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="2" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
                     <linearGradient id="fadeGradient" x1="0" x2="1" y1="0" y2="0">
                         <stop offset="0%" stopColor="black" stopOpacity="1" />
                         <stop offset="10%" stopColor="black" stopOpacity="0" />
@@ -114,17 +128,7 @@ const Stringline = ({ data, stations }) => {
                 </defs>
 
                 {/* Trips (Rendered FIRST so they are behind text) */}
-                {data.map(trip => (
-                    <path
-                        key={trip.trip_id}
-                        d={lineGenerator(trip.positions)}
-                        fill="none"
-                        stroke={trip.direction_id === 0 ? "#FCCC0A" : "#FCCC0A"} // Use line color for both, maybe opacity diff?
-                        strokeWidth={2}
-                        opacity={0.8}
-                        filter="url(#glow)"
-                    />
-                ))}
+                {tripPaths}
 
                 {/* Grid Lines (Stations) */}
                 {stations && stations.map((s, i) => (

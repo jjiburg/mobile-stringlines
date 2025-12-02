@@ -92,6 +92,7 @@ def init_db():
                 """)
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_positions_timestamp ON positions(timestamp)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_positions_trip_id ON positions(trip_id)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_trips_route_id ON trips(route_id)")
             conn.commit()
 
 @contextmanager

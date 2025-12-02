@@ -15,34 +15,42 @@ function App() {
   const [selectedDirection, setSelectedDirection] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 1. Fetch Stations (Once per line change)
   useEffect(() => {
-    const fetchData = async () => {
-      // Don't set loading to true on every poll, only initial or line change could trigger it if we wanted
-      // But for now, let's just keep it simple.
+    const fetchStations = async () => {
+      setIsLoading(true);
       try {
-        // Fetch stations for selected line
         const stationsRes = await fetch(`/api/stations?line=${selectedLine}`);
         if (stationsRes.ok) {
           const stationsJson = await stationsRes.json();
           setStations(stationsJson);
         }
+      } catch (e) {
+        console.error("Failed to fetch stations", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-        // Fetch history data
+    fetchStations();
+  }, [selectedLine]);
+
+  // 2. Poll History (Every 5 seconds)
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
         const res = await fetch(`/api/history?line=${selectedLine}`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
         }
       } catch (e) {
-        console.error("Failed to fetch data", e);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to fetch history", e);
       }
     };
 
-    setIsLoading(true); // Show loading when line changes
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+    fetchHistory(); // Initial fetch
+    const interval = setInterval(fetchHistory, 5000);
     return () => clearInterval(interval);
   }, [selectedLine]);
 
