@@ -118,9 +118,15 @@ def process_feed(feed):
         
     logger.info(f"Processed feed. Added {count_updates} positions.")
 
-async def poll_loop():
-    while True:
+def run_poll_cycle():
+    try:
         logger.info("Polling MTA...")
         feed = fetch_feed()
         process_feed(feed)
-        await asyncio.sleep(30)
+    except Exception as e:
+        logger.error(f"Error in poll cycle: {e}")
+
+async def poll_loop():
+    while True:
+        await asyncio.to_thread(run_poll_cycle)
+        await asyncio.sleep(5) # Poll more frequently now that it's non-blocking? Keep 30s for now or 15s. User wants speed. Let's do 10s.

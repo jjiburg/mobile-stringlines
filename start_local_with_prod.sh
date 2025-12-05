@@ -52,6 +52,13 @@ cd "$PROJECT_ROOT"
 echo "Starting Backend..."
 uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload &
 
+# Wait for Backend to be ready
+echo "Waiting for Backend to start..."
+while ! nc -z localhost 8080; do   
+  sleep 0.5
+done
+echo "Backend is ready!"
+
 # Start Frontend
 echo "Starting Frontend..."
 cd "$PROJECT_ROOT/frontend"

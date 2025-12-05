@@ -5,6 +5,7 @@ from contextlib import contextmanager
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
+    from psycopg2.pool import ThreadedConnectionPool
 except ImportError:
     psycopg2 = None
 
@@ -25,6 +26,9 @@ def get_db_url():
     return None
 
 logger = logging.getLogger(__name__)
+
+# Global Connection Pool
+pg_pool = None
 
 def get_db_type():
     if get_db_url():
@@ -69,7 +73,18 @@ def init_db():
         if not psycopg2:
             raise ImportError("psycopg2 is required for Postgres but not installed.")
             
-        with psycopg2.connect(get_db_url()) as conn:
+        global pg_pool
+        if pg_pool is None:
+            try:
+                pg_pool = ThreadedConnectionPool(1, 20, get_db_url())
+                logger.info("Postgres connection pool created")
+            except Exception as e:
+                logger.error(f"Failed to create connection pool: {e}")
+                raise e
+
+        # Use a connection from the pool for schema init
+        conn = pg_pool.getconn()
+        try:
             with conn.cursor() as cur:
                 # Postgres Schema
                 cur.execute("""
@@ -94,6 +109,15 @@ def init_db():
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_positions_trip_id ON positions(trip_id)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_trips_route_id ON trips(route_id)")
             conn.commit()
+        finally:
+            pg_pool.putconn(conn)
+
+def close_pool():
+    global pg_pool
+    if pg_pool:
+        pg_pool.closeall()
+        pg_pool = None
+        logger.info("Postgres connection pool closed")
 
 @contextmanager
 def get_db():
@@ -108,11 +132,19 @@ def get_db():
             conn.close()
             
     elif db_type == "postgres":
-        conn = psycopg2.connect(get_db_url())
-        try:
-            yield conn
-        finally:
-            conn.close()
+        if pg_pool:
+            conn = pg_pool.getconn()
+            try:
+                yield conn
+            finally:
+                pg_pool.putconn(conn)
+        else:
+            # Fallback if pool not initialized (e.g. scripts)
+            conn = psycopg2.connect(get_db_url())
+            try:
+                yield conn
+            finally:
+                conn.close()
 
 # Helper to execute query with correct placeholder
 def execute_query(conn, query, params=()):

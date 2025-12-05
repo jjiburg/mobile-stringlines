@@ -5,7 +5,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import os
 import json
-from db import init_db, get_db
+from db import init_db, get_db, close_pool
 from poller import poll_loop
 from mock_data import generate_mock_data
 import gtfs_loader
@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
     
     if task:
         task.cancel()
+    
+    close_pool()
 
 app = FastAPI(lifespan=lifespan)
 
