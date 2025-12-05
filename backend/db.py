@@ -86,6 +86,10 @@ def init_db():
         conn = pg_pool.getconn()
         try:
             with conn.cursor() as cur:
+                # Acquire advisory lock to prevent concurrent init deadlocks
+                # 12345 is an arbitrary integer ID for this lock
+                cur.execute("SELECT pg_advisory_xact_lock(12345)")
+                
                 # Postgres Schema
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS trips (
