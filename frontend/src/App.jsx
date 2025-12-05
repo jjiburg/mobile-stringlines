@@ -13,6 +13,7 @@ function App() {
   const [stations, setStations] = useState([]);
   const [selectedLine, setSelectedLine] = useState('Q');
   const [selectedDirection, setSelectedDirection] = useState(0);
+  const [showHeadways, setShowHeadways] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // 1. Fetch Stations (Once per line change)
@@ -69,7 +70,7 @@ function App() {
         <div className={`loading-overlay ${isLoading ? 'visible' : ''}`}>
           <div className="spinner"></div>
         </div>
-        <Stringline data={filteredData} stations={stations} />
+        <Stringline data={filteredData} stations={stations} showHeadways={showHeadways} />
       </div>
 
       <div className="controls-sheet glass">
@@ -85,6 +86,26 @@ function App() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="options-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+          <button
+            className={`option-btn ${showHeadways ? 'active' : ''}`}
+            onClick={() => setShowHeadways(!showHeadways)}
+            style={{
+              background: showHeadways ? '#0A84FF' : 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Show Headways
+          </button>
         </div>
 
         <div className="line-picker-container">

@@ -84,7 +84,68 @@ def get_history(line: str = Query("Q")):
             "stop_id": r["stop_id"]
         })
         
-    return list(trips.values())
+    # Filter out "stuck" trains (long dwells > 3 mins) ONLY AT TERMINALS
+    # This prevents flat lines at terminals from dominating the chart
+    # while preserving legitimate delays at other stations.
+    
+    terminals = gtfs_loader.get_terminal_stations(line)
+    
+    final_trips = []
+    for trip in trips.values():
+        positions = trip["positions"]
+        if not positions:
+            continue
+            
+        filtered_positions = []
+        
+        # Group by distance to identify dwells
+        current_dwell = [positions[0]]
+        
+        for i in range(1, len(positions)):
+            pos = positions[i]
+            prev = positions[i-1]
+            
+            # Check if distance is effectively the same (handle float precision)
+            if abs(pos["distance"] - prev["distance"]) < 0.01:
+                current_dwell.append(pos)
+            else:
+                # Dwell ended. Process it.
+                duration = current_dwell[-1]["timestamp"] - current_dwell[0]["timestamp"]
+                
+                # Check if this dwell is at a terminal
+                stop_id = current_dwell[0]["stop_id"]
+                base_stop_id = stop_id[:-1] if len(stop_id) > 3 else stop_id
+                is_terminal = base_stop_id in terminals
+                
+                if duration > 180 and is_terminal: 
+                    # Long dwell AT TERMINAL: Keep only the last point (hide the flat line)
+                    filtered_positions.append(current_dwell[-1])
+                else:
+                    # Short dwell OR non-terminal: Keep all points
+                    filtered_positions.extend(current_dwell)
+                
+                # Start new dwell
+                current_dwell = [pos]
+                
+        # Process the final dwell
+        if current_dwell:
+            duration = current_dwell[-1]["timestamp"] - current_dwell[0]["timestamp"]
+            
+            stop_id = current_dwell[0]["stop_id"]
+            base_stop_id = stop_id[:-1] if len(stop_id) > 3 else stop_id
+            is_terminal = base_stop_id in terminals
+            
+            if duration > 180 and is_terminal:
+                filtered_positions.append(current_dwell[-1])
+            else:
+                filtered_positions.extend(current_dwell)
+        
+        # Only include trip if it has at least 2 points (needed to draw a line)
+        if len(filtered_positions) > 1:
+            trip["positions"] = filtered_positions
+            final_trips.append(trip)
+        
+    return final_trips
 
 # Serve static files (React app)
 # Check if static directory exists (it will in Docker)

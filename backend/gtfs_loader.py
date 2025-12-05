@@ -196,3 +196,19 @@ def get_stations_list(route_id=None):
         filtered_list = [s for s in _STATIONS_LIST if s['id'] in relevant_stops]
         return filtered_list
     return _STATIONS_LIST
+
+def get_terminal_stations(route_id):
+    """Returns a set of stop_ids that are terminals (start/end) for the route."""
+    stations = get_stations_list(route_id)
+    if not stations:
+        return set()
+    
+    # Sort by distance just in case
+    stations.sort(key=lambda x: x['dist'])
+    
+    terminals = set()
+    if stations:
+        terminals.add(stations[0]['id'])
+        terminals.add(stations[-1]['id'])
+        
+    return terminals

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 
-const Stringline = ({ data, stations }) => {
+const Stringline = ({ data, stations, showHeadways }) => {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const [scrubberX, setScrubberX] = useState(null);
@@ -21,30 +21,31 @@ const Stringline = ({ data, stations }) => {
         return () => resizeObserver.disconnect();
     }, []);
 
+    const PADDING_TOP = 80;
+    const PADDING_BOTTOM = 300;
+
     // Scales
     const { xScale, yScale, distanceToY } = useMemo(() => {
-        if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToY: null };
+        if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToToY: null };
 
         // Update time window based on latest data or current time
         // We use the latest timestamp in data or current time if data is empty
         const now = Date.now() / 1000;
-        const oneHourAgo = now - 3600;
+        const thirtyMinutesAgo = now - 1800;
 
         const xScale = d3.scaleLinear()
-            .domain([oneHourAgo, now])
+            .domain([thirtyMinutesAgo, now])
             .range([0, dimensions.width]);
 
         // Uniform Y-Scale for Stations
         // We map station index to height, adding some padding top/bottom
         // Top padding: Header (~60px) + extra
         // Bottom padding: Controls Sheet (~180px) + extra
-        const paddingTop = 80;
-        const paddingBottom = 200;
-        const effectiveHeight = dimensions.height - paddingTop - paddingBottom;
+        const effectiveHeight = dimensions.height - PADDING_TOP - PADDING_BOTTOM;
 
         const yScale = (stationIndex) => {
             if (!stations || stations.length === 0) return 0;
-            return paddingTop + (stationIndex / (stations.length - 1)) * effectiveHeight;
+            return PADDING_TOP + (stationIndex / (stations.length - 1)) * effectiveHeight;
         };
 
         // Map physical distance to uniform Y
@@ -59,6 +60,21 @@ const Stringline = ({ data, stations }) => {
 
         return { xScale, yScale, distanceToY };
     }, [dimensions, stations, data]); // Added data dependency to refresh time window
+
+    // Time Ticks (Every 10 mins)
+    const timeTicks = useMemo(() => {
+        if (!xScale) return [];
+        const [start, end] = xScale.domain();
+        const ticks = [];
+
+        // Round up to nearest 10 mins (600s)
+        let current = Math.ceil(start / 600) * 600;
+        while (current <= end) {
+            ticks.push(current);
+            current += 600;
+        }
+        return ticks;
+    }, [xScale]);
 
     // Line Generator
     const lineGenerator = useMemo(() => {
@@ -84,6 +100,83 @@ const Stringline = ({ data, stations }) => {
             />
         ));
     }, [data, lineGenerator]);
+
+    // Headway Elements
+    const headwayElements = useMemo(() => {
+        if (!showHeadways || !data || !stations || !xScale || !distanceToY) return null;
+
+        const elements = [];
+
+        // For each station, find when trains passed it
+        stations.forEach((station, stationIndex) => {
+            const stationY = distanceToY(station.dist);
+            const arrivals = [];
+
+            data.forEach(trip => {
+                // Find the segment that crosses this station distance
+                // We assume positions are sorted by timestamp
+                for (let i = 0; i < trip.positions.length - 1; i++) {
+                    const p1 = trip.positions[i];
+                    const p2 = trip.positions[i + 1];
+
+                    // Check if station distance is between p1 and p2 (or very close)
+                    // Note: Direction matters. 
+                    // If p1.dist <= station.dist <= p2.dist (or vice versa)
+                    const minD = Math.min(p1.distance, p2.distance);
+                    const maxD = Math.max(p1.distance, p2.distance);
+
+                    if (station.dist >= minD && station.dist <= maxD) {
+                        // Interpolate timestamp
+                        const totalDist = p2.distance - p1.distance;
+                        if (Math.abs(totalDist) < 0.001) continue; // Avoid div by zero
+
+                        const ratio = (station.dist - p1.distance) / totalDist;
+                        const time = p1.timestamp + ratio * (p2.timestamp - p1.timestamp);
+
+                        arrivals.push(time);
+                        break; // Only count one arrival per trip per station (simplification)
+                    }
+                }
+            });
+
+            // Sort arrivals by time
+            arrivals.sort((a, b) => a - b);
+
+            // Calculate differences
+            for (let i = 0; i < arrivals.length - 1; i++) {
+                const t1 = arrivals[i];
+                const t2 = arrivals[i + 1];
+                const diffSeconds = t2 - t1;
+                const midTime = (t1 + t2) / 2;
+
+                // Only show if within view
+                const x = xScale(midTime);
+                if (x < 0 || x > dimensions.width) continue;
+
+                // Format: M:SSm
+                const minutes = Math.floor(diffSeconds / 60);
+                const seconds = Math.floor(diffSeconds % 60);
+                const text = `${minutes}:${seconds.toString().padStart(2, '0')}m`;
+
+                elements.push(
+                    <text
+                        key={`${station.id}-${i}`}
+                        x={x}
+                        y={stationY - 4} // Slightly above the station line
+                        textAnchor="middle"
+                        fill="#8E8E93"
+                        fontSize="10"
+                        opacity="0.7"
+                        style={{ pointerEvents: 'none' }}
+                    >
+                        {text}
+                    </text>
+                );
+            }
+        });
+
+        return elements;
+    }, [showHeadways, data, stations, xScale, distanceToY, dimensions]);
 
     // Touch Handling
     const handleTouch = (e) => {
@@ -126,6 +219,34 @@ const Stringline = ({ data, stations }) => {
                         <stop offset="10%" stopColor="black" stopOpacity="0" />
                     </linearGradient>
                 </defs>
+
+                {/* Time Grid (Vertical Lines) */}
+                {timeTicks.map(tick => (
+                    <g key={tick}>
+                        <line
+                            x1={xScale(tick)}
+                            x2={xScale(tick)}
+                            y1={PADDING_TOP}
+                            y2={dimensions.height - PADDING_BOTTOM}
+                            stroke="#38383A"
+                            strokeWidth={1}
+                            opacity={0.3}
+                        />
+                        <text
+                            x={xScale(tick)}
+                            y={dimensions.height - PADDING_BOTTOM + 15}
+                            textAnchor="middle"
+                            fill="#8E8E93"
+                            fontSize="10"
+                            fontWeight="500"
+                        >
+                            {new Date(tick * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                        </text>
+                    </g>
+                ))}
+
+                {/* Headways (Behind lines) */}
+                {headwayElements}
 
                 {/* Trips (Rendered FIRST so they are behind text) */}
                 {tripPaths}
