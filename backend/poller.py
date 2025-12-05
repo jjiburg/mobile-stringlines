@@ -93,6 +93,9 @@ def process_feed(feed):
                 """, (trip_id, route_id, v.trip.start_time, direction_id))
                 
                 stop_id = v.stop_id
+                if not stop_id:
+                    continue
+                    
                 base_stop_id = stop_id[:-1] if len(stop_id) > 3 else stop_id
                 
                 ts = v.timestamp

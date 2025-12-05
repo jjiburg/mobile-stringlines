@@ -184,6 +184,10 @@ def load_data():
 def get_station_distance(stop_id):
     # Handle suffixes
     if stop_id not in _STATION_MAP:
+        # Alias R60 (23 St - missing in static data) to R19 (23 St)
+        if stop_id.startswith('R60'):
+             return _STATION_MAP.get('R19')
+             
         if len(stop_id) > 3 and stop_id[-1] in ['N', 'S']:
             base_id = stop_id[:-1]
             return _STATION_MAP.get(base_id)
