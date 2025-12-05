@@ -36,8 +36,9 @@ The application is split into two services using Docker Compose:
 ### Frontend (`/frontend`)
 -   `src/App.jsx`: Main React component. Handles state (selected line, direction, **showHeadways**) and data fetching.
 -   `src/Stringline.jsx`: D3.js visualization.
-    -   **Scrollable Design**: The chart height is dynamic (`max(screen, stations * 60px)`). The container scrolls vertically while the header and controls remain fixed. This solves density issues on mobile.
+    -   **Scrollable Design**: The chart height is dynamic (`max(screen, stations * 45px)`). The container scrolls vertically while the header and controls remain fixed. This solves density issues on mobile.
     -   **Headways**: Calculates and displays time gaps (e.g., "4:30m") between trains at each station when toggled on.
+    -   **Sticky Time Labels**: Time labels (e.g., "10:00 PM") are fixed to the bottom of the viewport, ensuring visibility regardless of scroll position.
     -   **Uniform Spacing**: Uses a **Fixed Ratio Interval** for the Y-axis (stations are spaced equally).
     -   **Linear Interpolation**: Uses `d3.curveLinear` for accurate speed representation.
 
@@ -55,7 +56,7 @@ The application is split into two services using Docker Compose:
 -   **Data**: Stored in `./data/subway.db`.
 
 ## Known Constraints & Decisions
--   **Scrollable Vertical Axis**: We abandoned the "fit to screen" approach for the Y-axis. On mobile, 30+ stations cannot fit in 500px legibly. The graph is now vertically scrollable with a minimum of 60px per station.
+-   **Scrollable Vertical Axis**: We abandoned the "fit to screen" approach for the Y-axis. On mobile, 30+ stations cannot fit in 500px legibly. The graph is now vertically scrollable with a minimum of 45px per station.
 -   **Terminal Dwell Filtering**: In `backend/main.py`, we filter out train positions if a train dwells at a **terminal** station for > 3 minutes. This prevents "flat lines" from dominating the chart while preserving legitimate delays at intermediate stations.
 -   **Uniform Spacing**: The Y-axis does *not* represent physical distance. It represents station index. This was a deliberate design choice to fix overlapping labels.
 -   **Linear Interpolation**: We use straight lines because Express trains (skipping stops) caused `MonotoneX` to create misleading curves on the uniform grid.
@@ -110,3 +111,8 @@ If you see `INFO:db:Initializing database: sqlite` in your logs, your Web Servic
 3.  Go to your **Web Service** -> **Variables**.
 4.  Add `DATABASE_URL` and **Paste** the value manually.
 5.  Railway will redeploy, and you should see `INFO:db:Initializing database: postgres`.
+
+### Deployment Deadlocks
+If deployment fails with `psycopg2.errors.DeadlockDetected`, it means the Ingestor and Web Service are trying to initialize the DB simultaneously.
+**Fix**:
+We implemented **Advisory Locks** in `backend/db.py` (`pg_advisory_xact_lock(12345)`). This ensures that only one service can run the initialization logic at a time. If you still see this, ensure your code includes this fix.
