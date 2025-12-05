@@ -88,7 +88,7 @@ function App() {
           </div>
         </div>
 
-        <div className="options-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+        <div className="options-container" style={{ display: 'flex', justifyContent: 'center' }}>
           <button
             className={`option-btn ${showHeadways ? 'active' : ''}`}
             onClick={() => setShowHeadways(!showHeadways)}

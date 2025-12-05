@@ -8,7 +8,7 @@ const Stringline = ({ data, stations, showHeadways }) => {
 
     // Resize Observer
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || !containerRef.current.parentElement) return;
         const resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
                 setDimensions({
@@ -17,16 +17,24 @@ const Stringline = ({ data, stations, showHeadways }) => {
                 });
             }
         });
-        resizeObserver.observe(containerRef.current);
+        resizeObserver.observe(containerRef.current.parentElement);
         return () => resizeObserver.disconnect();
     }, []);
 
-    const PADDING_TOP = 80;
-    const PADDING_BOTTOM = 300;
+    const PADDING_TOP = 120; // Clear the header + extra breathing room
+    const PADDING_BOTTOM = 350; // Clear the controls sheet + extra breathing room
+    const MIN_STATION_HEIGHT = 45;
+
+    // Calculate total content height
+    const totalHeight = useMemo(() => {
+        if (!stations || stations.length === 0) return dimensions.height;
+        const requiredHeight = (stations.length - 1) * MIN_STATION_HEIGHT + PADDING_TOP + PADDING_BOTTOM;
+        return Math.max(dimensions.height, requiredHeight);
+    }, [dimensions.height, stations]);
 
     // Scales
     const { xScale, yScale, distanceToY } = useMemo(() => {
-        if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToToY: null };
+        if (dimensions.width === 0 || dimensions.height === 0) return { xScale: null, yScale: null, distanceToY: null };
 
         // Update time window based on latest data or current time
         // We use the latest timestamp in data or current time if data is empty
@@ -38,10 +46,8 @@ const Stringline = ({ data, stations, showHeadways }) => {
             .range([0, dimensions.width]);
 
         // Uniform Y-Scale for Stations
-        // We map station index to height, adding some padding top/bottom
-        // Top padding: Header (~60px) + extra
-        // Bottom padding: Controls Sheet (~180px) + extra
-        const effectiveHeight = dimensions.height - PADDING_TOP - PADDING_BOTTOM;
+        // We map station index to height, using the total scrollable height
+        const effectiveHeight = totalHeight - PADDING_TOP - PADDING_BOTTOM;
 
         const yScale = (stationIndex) => {
             if (!stations || stations.length === 0) return 0;
@@ -55,11 +61,11 @@ const Stringline = ({ data, stations, showHeadways }) => {
             const range = stations.map((_, i) => yScale(i));
             distanceToY.domain(domain).range(range);
         } else {
-            distanceToY.domain([0, 200]).range([0, dimensions.height]);
+            distanceToY.domain([0, 200]).range([0, totalHeight]);
         }
 
         return { xScale, yScale, distanceToY };
-    }, [dimensions, stations, data]); // Added data dependency to refresh time window
+    }, [dimensions, stations, data, totalHeight]); // Added totalHeight dependency
 
     // Time Ticks (Every 10 mins)
     const timeTicks = useMemo(() => {
@@ -120,7 +126,7 @@ const Stringline = ({ data, stations, showHeadways }) => {
                     const p2 = trip.positions[i + 1];
 
                     // Check if station distance is between p1 and p2 (or very close)
-                    // Note: Direction matters. 
+                    // Note: Direction matters.
                     // If p1.dist <= station.dist <= p2.dist (or vice versa)
                     const minD = Math.min(p1.distance, p2.distance);
                     const maxD = Math.max(p1.distance, p2.distance);
@@ -203,7 +209,7 @@ const Stringline = ({ data, stations, showHeadways }) => {
     return (
         <div
             ref={containerRef}
-            style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none', overflow: 'hidden' }}
+            style={{ width: '100%', height: totalHeight, position: 'relative', touchAction: 'pan-y', overflow: 'visible' }}
             onTouchStart={handleTouch}
             onTouchMove={handleTouch}
             onTouchEnd={handleTouchEnd}
@@ -212,7 +218,34 @@ const Stringline = ({ data, stations, showHeadways }) => {
             onMouseUp={handleTouchEnd}
             onMouseLeave={handleTouchEnd}
         >
-            <svg width={dimensions.width} height={dimensions.height} style={{ display: 'block' }}>
+            <div style={{
+                position: 'fixed',
+                bottom: '220px',
+                left: 0,
+                width: '100%',
+                height: 0,
+                overflow: 'visible',
+                zIndex: 20,
+                pointerEvents: 'none'
+            }}>
+                {timeTicks.map(tick => (
+                    <div key={tick} style={{
+                        position: 'absolute',
+                        left: xScale(tick),
+                        transform: 'translateX(-50%)',
+                        bottom: 0,
+                        color: '#8E8E93',
+                        fontSize: '10px',
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.8)' // Add shadow for legibility over lines
+                    }}>
+                        {new Date(tick * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                ))}
+            </div>
+
+            <svg width={dimensions.width} height={totalHeight} style={{ display: 'block' }}>
                 <defs>
                     <linearGradient id="fadeGradient" x1="0" x2="1" y1="0" y2="0">
                         <stop offset="0%" stopColor="black" stopOpacity="1" />
@@ -227,21 +260,11 @@ const Stringline = ({ data, stations, showHeadways }) => {
                             x1={xScale(tick)}
                             x2={xScale(tick)}
                             y1={PADDING_TOP}
-                            y2={dimensions.height - PADDING_BOTTOM}
+                            y2={totalHeight - PADDING_BOTTOM}
                             stroke="#38383A"
                             strokeWidth={1}
                             opacity={0.3}
                         />
-                        <text
-                            x={xScale(tick)}
-                            y={dimensions.height - PADDING_BOTTOM + 15}
-                            textAnchor="middle"
-                            fill="#8E8E93"
-                            fontSize="10"
-                            fontWeight="500"
-                        >
-                            {new Date(tick * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                        </text>
                     </g>
                 ))}
 
@@ -290,14 +313,14 @@ const Stringline = ({ data, stations, showHeadways }) => {
                             x1={scrubberX}
                             x2={scrubberX}
                             y1={0}
-                            y2={dimensions.height}
+                            y2={totalHeight}
                             stroke="white"
                             strokeWidth={1}
                         />
-                        {/* Time Label at bottom of scrubber */}
+                        {/* Time Label at bottom of graph */}
                         <rect
                             x={scrubberX - 30}
-                            y={dimensions.height - 180}
+                            y={totalHeight - PADDING_BOTTOM + 30}
                             width={60}
                             height={20}
                             rx={4}
@@ -305,7 +328,7 @@ const Stringline = ({ data, stations, showHeadways }) => {
                         />
                         <text
                             x={scrubberX}
-                            y={dimensions.height - 166}
+                            y={totalHeight - PADDING_BOTTOM + 44}
                             textAnchor="middle"
                             fill="white"
                             fontSize="11"

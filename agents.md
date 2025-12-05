@@ -33,10 +33,13 @@ The application is split into two services using Docker Compose:
 -   `main.py`: FastAPI application definition.
 
 ### Frontend (`/frontend`)
--   `src/App.jsx`: Main React component. Handles state (selected line, direction) and data fetching.
+### Frontend (`/frontend`)
+-   `src/App.jsx`: Main React component. Handles state (selected line, direction, **showHeadways**) and data fetching.
 -   `src/Stringline.jsx`: D3.js visualization.
-    -   **Uniform Spacing**: Uses a **Fixed Ratio Interval** for the Y-axis (stations are spaced equally, ignoring physical distance) to prevent label overlap.
-    -   **Linear Interpolation**: Uses `d3.curveLinear` to draw straight lines between data points, avoiding artifacts from smoothing sparse data.
+    -   **Scrollable Design**: The chart height is dynamic (`max(screen, stations * 60px)`). The container scrolls vertically while the header and controls remain fixed. This solves density issues on mobile.
+    -   **Headways**: Calculates and displays time gaps (e.g., "4:30m") between trains at each station when toggled on.
+    -   **Uniform Spacing**: Uses a **Fixed Ratio Interval** for the Y-axis (stations are spaced equally).
+    -   **Linear Interpolation**: Uses `d3.curveLinear` for accurate speed representation.
 
 ### Configuration
 -   `docker-compose.yml`: Defines the `ingestor` and `web` services.
@@ -52,13 +55,14 @@ The application is split into two services using Docker Compose:
 -   **Data**: Stored in `./data/subway.db`.
 
 ## Known Constraints & Decisions
+-   **Scrollable Vertical Axis**: We abandoned the "fit to screen" approach for the Y-axis. On mobile, 30+ stations cannot fit in 500px legibly. The graph is now vertically scrollable with a minimum of 60px per station.
+-   **Terminal Dwell Filtering**: In `backend/main.py`, we filter out train positions if a train dwells at a **terminal** station for > 3 minutes. This prevents "flat lines" from dominating the chart while preserving legitimate delays at intermediate stations.
 -   **Uniform Spacing**: The Y-axis does *not* represent physical distance. It represents station index. This was a deliberate design choice to fix overlapping labels.
 -   **Linear Interpolation**: We use straight lines because Express trains (skipping stops) caused `MonotoneX` to create misleading curves on the uniform grid.
 -   **Southbound Orientation**: The map is built using Southbound trips to ensure a consistent "Top-Down" orientation (Manhattan -> Brooklyn).
 
 ## Future Work
 -   Add support for more lines (currently N, Q, R, W).
--   Improve mobile touch interactions (scrubber is basic).
 -   Add "Live" indicator for real-time updates.
 
 ## Deployment (Railway) - Recommended
@@ -75,6 +79,24 @@ To prevent data loss during updates, you must deploy the **Ingestor** and **Web 
     -   **Variables**: Add `DATABASE_URL` (link to same Postgres) and `DISABLE_POLLER=true`.
     -   **Start Command**: `./start_web.sh`
     -   **Domain**: Assign a domain to this service.
+
+### Watch Paths (Optimization)
+To prevent unnecessary restarts (which cause data gaps for the ingestor), configure **Watch Paths** in Railway Settings -> Deploy -> Watch Paths:
+
+**Ingestor Service**:
+```text
+/backend/**
+/gtfs_subway/**
+requirements.txt
+```
+
+**Web Service**:
+```text
+/frontend/**
+/backend/**
+/Dockerfile
+start_web.sh
+```
 
 **Result**: When you push changes, Railway will redeploy both. However, because they are separate, the Ingestor's brief restart won't affect the Website, and vice-versa. (Actually, Railway redeploys are zero-downtime for the Web App, but the Ingestor will restart. To have *truly* zero interruption for ingestion, you'd need more complex orchestration, but this split minimizes the impact significantly compared to a monolith).
 
