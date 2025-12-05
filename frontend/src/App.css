@@ -100,7 +100,7 @@ body {
   right: 0;
   z-index: 100;
   /* Add extra padding to clear the mobile browser URL bar */
-  padding-bottom: calc(env(safe-area-inset-bottom) + 50px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
   padding-top: 16px;
   display: flex;
   flex-direction: column;
