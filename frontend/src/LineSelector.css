@@ -1,0 +1,112 @@
+.line-selector-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.group-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.group-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.group-tab.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.line-grid-scroll {
+    overflow-x: auto;
+    padding-bottom: 4px;
+    /* Space for scrollbar if needed */
+    -webkit-overflow-scrolling: touch;
+}
+
+.line-grid {
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    justify-content: flex-start;
+    /* Ensure items start from left in scroll view */
+    flex-wrap: nowrap;
+    /* Prevent wrapping implies horizontal scroll */
+
+    /* Or if we want a grid wrap design: */
+    /* flex-wrap: wrap; justify-content: center; */
+}
+
+/* Let's go with wrapping grid for now as it feels more "keyboard" like */
+.line-grid {
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.line-btn {
+    background: rgba(30, 30, 30, 0.6);
+    border: 2px solid transparent;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.line-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.line-btn.active {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.line-bullet {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    /* text-shadow: 0 1px 2px rgba(0,0,0,0.2); */
+    /* Usually MTA bullets are solid color with white text (or black for N/Q/R/W) */
+}
+
+/* Specific text colors */
+.line-btn .line-bullet {
+    color: white;
+}
+
+/* N Q R W use black text on yellow */
+.line-btn[style*="#FCCC0A"] .line-bullet {
+    color: black;
+}
