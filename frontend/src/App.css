@@ -98,7 +98,8 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 200;
+  /* Increased to be above everything */
   /* Add extra padding to clear the mobile browser URL bar */
   padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
   padding-top: 16px;
@@ -142,7 +143,8 @@ body {
 
 /* Line Picker */
 .line-picker-container {
-  overflow-x: auto;
+  overflow: visible;
+  /* Allow stack to pop out */
   padding: 10px 20px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

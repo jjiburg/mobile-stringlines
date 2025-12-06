@@ -29,18 +29,23 @@ def load_data():
             stops_info[row['stop_id']] = row['stop_name']
 
     # 2. Find candidate trips (Longest for each route)
-    # Process Local lines first (R, W) to ensure all stops are mapped with correct spacing.
-    # Then Express lines (N, Q) will map to the existing station distances.
-    routes = ['R', 'W', 'N', 'Q']
+    # Load all routes from routes.txt
+    routes = []
+    with open(os.path.join(GTFS_DIR, 'routes.txt'), 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['route_id'] != 'SI': # Exclude Staten Island Railway for now if desired, or keep it. Plan said all. Let's keep it but it might fail anchor logic.
+                routes.append(row['route_id'])
+    
     candidate_trips = {r: [] for r in routes}
     
     with open(TRIPS_FILE, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             rid = row['route_id']
-            # Filter by direction_id=1 (Southbound) to ensure consistent orientation
-            # If we mix directions, the station map will be scrambled.
-            if rid in routes and row['direction_id'] == '1':
+            # Allow both directions to find the longest sequence.
+            # We will handle orientation later if needed.
+            if rid in routes:
                 candidate_trips[rid].append(row['trip_id'])
                 
     # Limit candidates for performance
@@ -151,9 +156,19 @@ def load_data():
             _ROUTE_STATIONS[route_id].add(stop_id)
 
     # Process all routes
+    # Sort routes to process "Local" or "Long" lines first? 
+    # Actually, we should process lines that contain our anchor (R17) first, then others.
+    # But for now, let's just process them.
+    
     for rid in routes:
+        if rid not in route_sequences:
+            continue
+            
         # Strip suffixes for alignment logic
         seq = [s[:-1] if len(s) > 3 and s[-1] in ['N', 'S'] else s for s in route_sequences[rid]]
+        
+        # Use R17 (Herald Sq) as primary anchor. 
+        # If a route doesn't go through R17, process_sequence will try to find *any* known station.
         process_sequence(seq, route_id=rid, anchor_id='R17', anchor_dist=50, step=2)
 
     # Normalize

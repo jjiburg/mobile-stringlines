@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
     
     task = None
     if not USE_MOCK_DATA and not DISABLE_POLLER:
+        print("DEBUG: Starting poll_loop task...")
         task = asyncio.create_task(poll_loop())
         
     yield

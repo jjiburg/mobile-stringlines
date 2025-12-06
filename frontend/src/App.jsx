@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Stringline from './Stringline';
+import LineSelector from './LineSelector';
 import './App.css';
 
-const LINES = ['N', 'Q', 'R', 'W'];
+// const LINES = ['N', 'Q', 'R', 'W']; // Moved to LineSelector
 const DIRECTIONS = [
   { id: 0, label: 'Northbound' },
   { id: 1, label: 'Southbound' }
@@ -109,17 +110,7 @@ function App() {
         </div>
 
         <div className="line-picker-container">
-          <div className="line-picker">
-            {LINES.map(line => (
-              <button
-                key={line}
-                className={`line-btn line-${line} ${selectedLine === line ? 'active' : ''}`}
-                onClick={() => setSelectedLine(line)}
-              >
-                {line}
-              </button>
-            ))}
-          </div>
+          <LineSelector selectedLine={selectedLine} onSelectLine={setSelectedLine} />
         </div>
       </div>
     </div>

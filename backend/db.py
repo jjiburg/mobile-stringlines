@@ -136,19 +136,19 @@ def get_db():
             conn.close()
             
     elif db_type == "postgres":
-        if pg_pool:
-            conn = pg_pool.getconn()
-            try:
-                yield conn
-            finally:
-                pg_pool.putconn(conn)
-        else:
+        # if pg_pool:
+        #     conn = pg_pool.getconn()
+        #     try:
+        #         yield conn
+        #     finally:
+        #         pg_pool.putconn(conn)
+        # else:
             # Fallback if pool not initialized (e.g. scripts)
-            conn = psycopg2.connect(get_db_url())
-            try:
-                yield conn
-            finally:
-                conn.close()
+        conn = psycopg2.connect(get_db_url())
+        try:
+            yield conn
+        finally:
+            conn.close()
 
 # Helper to execute query with correct placeholder
 def execute_query(conn, query, params=()):
